@@ -9,9 +9,9 @@
 <script>
 (function(){
   try{
-    var saved = localStorage.getItem('spoke_theme');
-    var theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    document.documentElement.setAttribute('data-theme', theme);
+    var pref = localStorage.getItem('spoke_theme_pref') || 'light';
+    var visual = pref === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : pref;
+    document.documentElement.setAttribute('data-theme', visual);
   }catch(e){}
 })();
 </script>
@@ -23,8 +23,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="description" content="A minimal speed, time and distance dashboard for your bike.">
 
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2314181A'/%3E%3Cpath d='M50 22a28 28 0 1 1 -19.8 47.8' stroke='%23FF6A3D' stroke-width='9' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%23FF6A3D'/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%2314181A'/%3E%3Cpath d='M50 22a28 28 0 1 1 -19.8 47.8' stroke='%23FF6A3D' stroke-width='9' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%23FF6A3D'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2314181A'/%3E%3Cpath d='M50 22a28 28 0 1 1 -19.8 47.8' stroke='%237C8B3D' stroke-width='9' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%237C8B3D'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%2314181A'/%3E%3Cpath d='M50 22a28 28 0 1 1 -19.8 47.8' stroke='%237C8B3D' stroke-width='9' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%237C8B3D'/%3E%3C/svg%3E">
 <link id="manifest-link" rel="manifest">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,8 +38,8 @@
     --muted: #5B6663;
     --line: rgba(18,24,26,0.12);
     --chip-bg: rgba(18,24,26,0.06);
-    --accent: #FF6A3D;
-    --accent-ink: #14100D;
+    --accent: #7C8B3D;
+    --accent-ink: #F5F7EF;
     --font-display: 'Big Shoulders Display', system-ui, sans-serif;
     --font-body: 'Inter', system-ui, -apple-system, sans-serif;
     --safe-t: env(safe-area-inset-top, 0px);
@@ -54,8 +54,8 @@
     --muted: #8B958F;
     --line: rgba(237,241,238,0.14);
     --chip-bg: rgba(237,241,238,0.08);
-    --accent: #FF7A4D;
-    --accent-ink: #14100D;
+    --accent: #9AAE4D;
+    --accent-ink: #14180B;
   }
 
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -123,6 +123,12 @@
     text-align: center;
   }
   .speed-value.stale{ color: var(--muted); }
+  .unit-row{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
   .unit-toggle{
     background: none;
     border: 1px solid var(--line);
@@ -133,9 +139,29 @@
     font-size: 0.95rem;
     color: var(--muted);
     cursor: pointer;
-    margin-top: 6px;
   }
   .unit-toggle:hover{ border-color: var(--accent); color: var(--ink); }
+  .gps-dot{
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted);
+    opacity: 0.45;
+    transition: background .2s ease, opacity .2s ease;
+  }
+  .gps-dot.good{ background: var(--accent); opacity: 1; }
+  .gps-dot.fair{ background: #D9A441; opacity: 1; }
+  .gps-dot.poor{ background: #D9534F; opacity: 1; }
+  .weight-input{
+    width: 56px;
+    text-align: right;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--ink);
+  }
   .gps-hint{
     font-size: 0.8rem;
     color: var(--muted);
@@ -334,7 +360,10 @@
 
   <div class="hero">
     <div class="speed-value stale" id="speedValue">0</div>
-    <button class="unit-toggle" id="unitToggle">km/h</button>
+    <div class="unit-row">
+      <button class="unit-toggle" id="unitToggle">km/h</button>
+      <span class="gps-dot" id="gpsDot" title="GPS signal quality"></span>
+    </div>
     <div class="gps-hint" id="gpsHint">Waiting for GPS — go outside and allow location access</div>
   </div>
 
@@ -357,6 +386,7 @@
 
   <div class="chips">
     <div class="chip"><span>Max</span><b id="maxChip">0 km/h</b></div>
+    <div class="chip"><span>Climb</span><b id="climbChip">0 m</b></div>
     <div class="chip" id="battChip" style="display:none"><span>🔋</span><b id="battValue">--%</b></div>
     <button class="chip tappable" id="compassChip">Compass off</button>
   </div>
@@ -370,9 +400,6 @@
     <div class="panel-title">More</div>
   </div>
   <div class="panel-body">
-
-    <div class="section-title">World clock</div>
-    <div id="worldClockList"></div>
 
     <div class="section-title">Ride log</div>
     <div id="rideLogList"></div>
@@ -406,6 +433,16 @@
       </div>
       <button class="small-btn" id="compassBtn">Enable</button>
     </div>
+    <div class="row">
+      <div>
+        <div class="row-label">Rider weight</div>
+        <div class="row-sub">Used to estimate calories burned per ride</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px">
+        <input type="number" class="weight-input" id="weightInput" inputmode="numeric" min="20" max="250">
+        <span class="row-sub" id="weightUnit">kg</span>
+      </div>
+    </div>
     <div class="row" style="border-bottom:none">
       <div>
         <div class="row-label">Theme</div>
@@ -413,6 +450,7 @@
       <div class="segmented" id="themeSeg">
         <button data-val="light">Light</button>
         <button data-val="dark">Dark</button>
+        <button data-val="auto">Auto</button>
       </div>
     </div>
 
@@ -427,8 +465,9 @@
   var state = {
     unit: localStorage.getItem('spoke_unit') || 'km',
     clockFormat: localStorage.getItem('spoke_clockformat') || '24',
-    theme: document.documentElement.getAttribute('data-theme') || 'light',
+    themePref: localStorage.getItem('spoke_theme_pref') || 'light',
     wakeLockOn: localStorage.getItem('spoke_wakelock') !== 'off',
+    weightKg: parseFloat(localStorage.getItem('spoke_weight_kg')) || 70,
     compassEnabled: false
   };
 
@@ -436,6 +475,8 @@
     distanceM: 0,
     movingSeconds: 0,
     maxSpeedMs: 0,
+    elevGainM: 0,
+    lastAltitude: null,
     timerRunning: false,
     lastGoodFix: null,
     lastFixTime: null,
@@ -465,14 +506,17 @@
     moreBtn: document.getElementById('moreBtn'),
     backBtn: document.getElementById('backBtn'),
     panel: document.getElementById('panel'),
-    worldClockList: document.getElementById('worldClockList'),
     rideLogList: document.getElementById('rideLogList'),
     unitSeg: document.getElementById('unitSeg'),
     clockSeg: document.getElementById('clockSeg'),
     themeSeg: document.getElementById('themeSeg'),
     wakeSwitch: document.getElementById('wakeSwitch'),
     compassBtn: document.getElementById('compassBtn'),
-    themeColorMeta: document.getElementById('theme-color-meta')
+    themeColorMeta: document.getElementById('theme-color-meta'),
+    gpsDot: document.getElementById('gpsDot'),
+    climbChip: document.getElementById('climbChip'),
+    weightInput: document.getElementById('weightInput'),
+    weightUnitLabel: document.getElementById('weightUnit')
   };
 
   /* ============ helpers ============ */
@@ -515,22 +559,25 @@
     return pad(h) + ':' + m;
   }
 
-  var WORLD_CITIES = [
-    { name: 'Los Angeles', tz: 'America/Los_Angeles' },
-    { name: 'New York', tz: 'America/New_York' },
-    { name: 'London', tz: 'Europe/London' },
-    { name: 'Berlin', tz: 'Europe/Berlin' },
-    { name: 'Dubai', tz: 'Asia/Dubai' },
-    { name: 'Tokyo', tz: 'Asia/Tokyo' },
-    { name: 'Sydney', tz: 'Australia/Sydney' }
-  ];
-  function renderWorldClock(){
-    var now = new Date();
-    el.worldClockList.innerHTML = WORLD_CITIES.map(function(c){
-      var opts = { hour: '2-digit', minute: '2-digit', hour12: state.clockFormat === '12', timeZone: c.tz };
-      var t = new Intl.DateTimeFormat('en-GB', opts).format(now);
-      return '<div class="row"><div class="row-label">' + c.name + '</div><div class="row-value">' + t + '</div></div>';
-    }).join('');
+  /* ============ calories ============ */
+  function estimateCalories(avgKmh, hours, weightKg){
+    var met;
+    if(avgKmh < 16) met = 4;
+    else if(avgKmh < 19) met = 6;
+    else if(avgKmh < 22) met = 8;
+    else if(avgKmh < 25) met = 10;
+    else if(avgKmh < 30) met = 12;
+    else met = 14;
+    return met * weightKg * hours;
+  }
+  function renderWeightInput(){
+    if(state.unit === 'km'){
+      el.weightInput.value = Math.round(state.weightKg);
+      el.weightUnitLabel.textContent = 'kg';
+    } else {
+      el.weightInput.value = Math.round(state.weightKg * 2.20462);
+      el.weightUnitLabel.textContent = 'lb';
+    }
   }
 
   /* ============ timer ============ */
@@ -543,6 +590,11 @@
     return m + ':' + pad(s);
   }
   function setTimerRunning(running){
+    if(running !== ride.timerRunning){
+      try{
+        if(navigator.vibrate) navigator.vibrate(running ? 25 : [15, 60, 15]);
+      }catch(e){}
+    }
     ride.timerRunning = running;
     el.timerDot.classList.toggle('live', running);
   }
@@ -561,12 +613,16 @@
     if(ride.distanceM < 150) return;
     var log = loadLog();
     var avgMs = ride.movingSeconds > 0 ? (ride.distanceM / ride.movingSeconds) : 0;
+    var hours = ride.movingSeconds / 3600;
+    var cal = estimateCalories(avgMs * 3.6, hours, state.weightKg);
     log.unshift({
       date: new Date().toISOString(),
       distanceM: ride.distanceM,
       movingSeconds: ride.movingSeconds,
       avgMs: avgMs,
-      maxMs: ride.maxSpeedMs
+      maxMs: ride.maxSpeedMs,
+      elevGainM: ride.elevGainM,
+      cal: cal
     });
     if(log.length > 25) log = log.slice(0, 25);
     saveLog(log);
@@ -582,8 +638,9 @@
       var dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       var dist = metersToDisplayDist(r.distanceM).toFixed(2) + ' ' + distUnitLabel();
       var avg = Math.round(msToDisplaySpeed(r.avgMs)) + ' ' + unitLabel();
+      var cal = Math.round(r.cal || 0) + ' kcal';
       return '<div class="row"><div><div class="row-label">' + dateStr + '</div>' +
-             '<div class="row-sub">' + dist + ' · ' + formatDuration(r.movingSeconds) + '</div></div>' +
+             '<div class="row-sub">' + dist + ' · ' + formatDuration(r.movingSeconds) + ' · ' + cal + '</div></div>' +
              '<div class="row-value">' + avg + '</div></div>';
     }).join('');
     html += '<button class="small-btn" id="clearLogBtn" style="margin-top:12px">Clear log</button>';
@@ -601,6 +658,8 @@
     ride.distanceM = 0;
     ride.movingSeconds = 0;
     ride.maxSpeedMs = 0;
+    ride.elevGainM = 0;
+    ride.lastAltitude = null;
     ride.lastGoodFix = null;
     ride.speedBuffer = [];
     setTimerRunning(false);
@@ -616,6 +675,9 @@
     var avgMs = ride.movingSeconds > 0 ? (ride.distanceM / ride.movingSeconds) : 0;
     el.avgValue.textContent = Math.round(msToDisplaySpeed(avgMs));
     el.maxChip.textContent = Math.round(msToDisplaySpeed(ride.maxSpeedMs)) + ' ' + unitLabel();
+    el.climbChip.textContent = state.unit === 'km'
+      ? Math.round(ride.elevGainM) + ' m'
+      : Math.round(ride.elevGainM * 3.28084) + ' ft';
     el.timerValue.textContent = formatDuration(ride.movingSeconds);
   }
 
@@ -624,6 +686,17 @@
     var now = pos.timestamp || Date.now();
     el.gpsHint.style.display = 'none';
     el.speedValue.classList.remove('stale');
+
+    var quality = !c.accuracy ? 'fair' : (c.accuracy < 15 ? 'good' : (c.accuracy < 30 ? 'fair' : 'poor'));
+    el.gpsDot.className = 'gps-dot ' + quality;
+
+    if(typeof c.altitude === 'number' && c.altitude !== null && (!c.altitudeAccuracy || c.altitudeAccuracy < 20)){
+      if(ride.lastAltitude !== null){
+        var altDelta = c.altitude - ride.lastAltitude;
+        if(altDelta > 0.5) ride.elevGainM += altDelta;
+      }
+      ride.lastAltitude = c.altitude;
+    }
 
     var instMs = 0;
     if(typeof c.speed === 'number' && c.speed !== null && c.speed >= 0){
@@ -754,13 +827,25 @@
   });
 
   /* ============ theme ============ */
-  function applyTheme(t){
-    state.theme = t;
-    document.documentElement.setAttribute('data-theme', t);
-    localStorage.setItem('spoke_theme', t);
+  function systemPrefersDark(){
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function visualFromPref(pref){
+    return pref === 'auto' ? (systemPrefersDark() ? 'dark' : 'light') : pref;
+  }
+  function applyTheme(pref){
+    state.themePref = pref;
+    localStorage.setItem('spoke_theme_pref', pref);
+    var visual = visualFromPref(pref);
+    document.documentElement.setAttribute('data-theme', visual);
     var bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
     el.themeColorMeta.setAttribute('content', bg);
-    updateSegmented(el.themeSeg, t);
+    updateSegmented(el.themeSeg, pref);
+  }
+  if(window.matchMedia){
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(){
+      if(state.themePref === 'auto') applyTheme('auto');
+    });
   }
 
   /* ============ segmented control helper ============ */
@@ -772,7 +857,7 @@
 
   /* ============ PWA manifest + service worker ============ */
   function setupPWA(){
-    var icon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2314181A'/%3E%3Cpath d='M50 22a28 28 0 1 1 -19.8 47.8' stroke='%23FF6A3D' stroke-width='9' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%23FF6A3D'/%3E%3C/svg%3E";
+    var icon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2314181A'/%3E%3Cpath d='M50 22a28 28 0 1 1 -19.8 47.8' stroke='%237C8B3D' stroke-width='9' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%237C8B3D'/%3E%3C/svg%3E";
     var manifest = {
       name: 'Spoke — Bike Dashboard',
       short_name: 'Spoke',
@@ -806,7 +891,6 @@
   function openPanel(){
     el.panel.classList.add('open');
     el.panel.setAttribute('aria-hidden', 'false');
-    renderWorldClock();
     renderRideLog();
   }
   function closePanel(){
@@ -820,6 +904,7 @@
     localStorage.setItem('spoke_unit', state.unit);
     el.unitToggle.textContent = unitLabel();
     updateSegmented(el.unitSeg, state.unit);
+    renderWeightInput();
     renderStats(ride.speedBuffer.length ? ride.speedBuffer[ride.speedBuffer.length-1] : 0);
   });
 
@@ -827,14 +912,23 @@
   el.resetBtn.addEventListener('click', resetRide);
   el.moreBtn.addEventListener('click', openPanel);
   el.backBtn.addEventListener('click', closePanel);
-  el.themeBtn.addEventListener('click', function(){ applyTheme(state.theme === 'dark' ? 'light' : 'dark'); });
+  el.themeBtn.addEventListener('click', function(){
+    var currentVisual = document.documentElement.getAttribute('data-theme');
+    applyTheme(currentVisual === 'dark' ? 'light' : 'dark');
+  });
   el.compassChip.addEventListener('click', enableCompass);
   el.compassBtn.addEventListener('click', enableCompass);
+  el.weightInput.addEventListener('change', function(){
+    var v = parseFloat(el.weightInput.value);
+    if(!v || v <= 0) return;
+    state.weightKg = state.unit === 'km' ? v : v / 2.20462;
+    localStorage.setItem('spoke_weight_kg', state.weightKg);
+  });
 
   el.unitSeg.addEventListener('click', function(e){
     var btn = e.target.closest('button'); if(!btn) return;
     var v = btn.getAttribute('data-val');
-    if(v !== state.unit){ state.unit = v; localStorage.setItem('spoke_unit', v); el.unitToggle.textContent = unitLabel(); updateSegmented(el.unitSeg, v); renderStats(0); renderRideLog(); }
+    if(v !== state.unit){ state.unit = v; localStorage.setItem('spoke_unit', v); el.unitToggle.textContent = unitLabel(); updateSegmented(el.unitSeg, v); renderWeightInput(); renderStats(0); renderRideLog(); }
   });
   el.clockSeg.addEventListener('click', function(e){
     var btn = e.target.closest('button'); if(!btn) return;
@@ -842,7 +936,7 @@
     state.clockFormat = v;
     localStorage.setItem('spoke_clockformat', v);
     updateSegmented(el.clockSeg, v);
-    renderClock(); renderWorldClock();
+    renderClock();
   });
   el.themeSeg.addEventListener('click', function(e){
     var btn = e.target.closest('button'); if(!btn) return;
@@ -861,8 +955,9 @@
     el.unitToggle.textContent = unitLabel();
     updateSegmented(el.unitSeg, state.unit);
     updateSegmented(el.clockSeg, state.clockFormat);
-    updateSegmented(el.themeSeg, state.theme);
+    updateSegmented(el.themeSeg, state.themePref);
     el.wakeSwitch.classList.toggle('on', state.wakeLockOn);
+    renderWeightInput();
 
     renderClock();
     setInterval(renderClock, 1000);
