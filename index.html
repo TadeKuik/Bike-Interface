@@ -16,15 +16,15 @@
 })();
 </script>
 
-<meta name="theme-color" content="#14181A" id="theme-color-meta">
+<meta name="theme-color" content="#F2F4F2" id="theme-color-meta">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Spoke">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="description" content="A minimal speed, time and distance dashboard for your bike.">
 
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2314181A'/%3E%3Cpath d='M50 22a28 28 0 1 1 -19.8 47.8' stroke='%237C8B3D' stroke-width='9' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%237C8B3D'/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%2314181A'/%3E%3Cpath d='M50 22a28 28 0 1 1 -19.8 47.8' stroke='%237C8B3D' stroke-width='9' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%237C8B3D'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23F4F6F0'/%3E%3Ccircle cx='50' cy='54' r='30' fill='none' stroke='%237C8B3D' stroke-width='8'/%3E%3Cline x1='50' y1='54' x2='68' y2='36' stroke='%237C8B3D' stroke-width='7' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='54' r='6' fill='%237C8B3D'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23F4F6F0'/%3E%3Ccircle cx='50' cy='54' r='30' fill='none' stroke='%237C8B3D' stroke-width='8'/%3E%3Cline x1='50' y1='54' x2='68' y2='36' stroke='%237C8B3D' stroke-width='7' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='54' r='6' fill='%237C8B3D'/%3E%3C/svg%3E">
 <link id="manifest-link" rel="manifest">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -194,11 +194,11 @@
     gap: 5px;
   }
   .stat-dot{
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--muted);
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #E5484D;
     flex-shrink: 0;
   }
-  .stat-dot.live{ background: var(--accent); }
+  .stat-dot.live{ background: #2FAE4E; }
   .stat-value{
     font-family: var(--font-display);
     font-weight: 700;
@@ -263,6 +263,48 @@
     font-size: 1.3rem;
   }
   .panel-body{ overflow-y: auto; flex: 1; padding-bottom: 20px; }
+
+  /* ---------- ride summary overlay ---------- */
+  .summary-overlay{
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    color: var(--ink);
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease;
+    padding: calc(var(--safe-t) + 14px) 24px calc(var(--safe-b) + 14px);
+    text-align: center;
+  }
+  .summary-overlay.open{ opacity: 1; pointer-events: auto; }
+  @media (prefers-reduced-motion: reduce){ .summary-overlay{ transition: none; } }
+  .summary-title{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.7rem;
+  }
+  .summary-grid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px 40px;
+    width: 100%;
+    max-width: 320px;
+  }
+  .summary-stat{ display: flex; flex-direction: column; gap: 3px; }
+  .summary-stat .label{ font-size: 0.75rem; color: var(--muted); }
+  .summary-stat .value{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.7rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary-hint{ font-size: 0.8rem; color: var(--muted); }
 
   .section-title{
     font-size: 0.85rem;
@@ -331,12 +373,6 @@
   }
   .small-btn:hover{ color: var(--ink); border-color: var(--accent); }
 
-  .empty-note{
-    color: var(--muted);
-    font-size: 0.88rem;
-    padding: 10px 0;
-  }
-
   ::-webkit-scrollbar{ width: 0; height: 0; }
 </style>
 </head>
@@ -387,9 +423,23 @@
   <div class="chips">
     <div class="chip"><span>Max</span><b id="maxChip">0 km/h</b></div>
     <div class="chip"><span>Climb</span><b id="climbChip">0 m</b></div>
-    <div class="chip" id="battChip" style="display:none"><span>🔋</span><b id="battValue">--%</b></div>
+    <div class="chip"><span>Cal</span><b id="calChip">0 kcal</b></div>
+    <div class="chip" id="battChip" style="display:none"><span>Battery</span><b id="battValue">--%</b></div>
     <button class="chip tappable" id="compassChip">Compass off</button>
   </div>
+</div>
+
+<div class="summary-overlay" id="summaryOverlay">
+  <div class="summary-title">Ride complete</div>
+  <div class="summary-grid">
+    <div class="summary-stat"><span class="label">Distance</span><span class="value" id="summaryDist">0.00</span></div>
+    <div class="summary-stat"><span class="label">Time</span><span class="value" id="summaryTime">0:00</span></div>
+    <div class="summary-stat"><span class="label">Avg speed</span><span class="value" id="summaryAvg">0</span></div>
+    <div class="summary-stat"><span class="label">Max speed</span><span class="value" id="summaryMax">0</span></div>
+    <div class="summary-stat"><span class="label">Climb</span><span class="value" id="summaryClimb">0</span></div>
+    <div class="summary-stat"><span class="label">Calories</span><span class="value" id="summaryCal">0</span></div>
+  </div>
+  <div class="summary-hint">Tap anywhere to continue</div>
 </div>
 
 <div class="panel" id="panel" aria-hidden="true">
@@ -400,9 +450,6 @@
     <div class="panel-title">More</div>
   </div>
   <div class="panel-body">
-
-    <div class="section-title">Ride log</div>
-    <div id="rideLogList"></div>
 
     <div class="section-title">Settings</div>
     <div class="row">
@@ -480,8 +527,8 @@
     timerRunning: false,
     lastGoodFix: null,
     lastFixTime: null,
-    speedBuffer: [],
-    autoMoveTimeout: null
+    lastMovementTime: null,
+    speedBuffer: []
   };
 
   var wakeLock = null;
@@ -506,7 +553,6 @@
     moreBtn: document.getElementById('moreBtn'),
     backBtn: document.getElementById('backBtn'),
     panel: document.getElementById('panel'),
-    rideLogList: document.getElementById('rideLogList'),
     unitSeg: document.getElementById('unitSeg'),
     clockSeg: document.getElementById('clockSeg'),
     themeSeg: document.getElementById('themeSeg'),
@@ -515,8 +561,16 @@
     themeColorMeta: document.getElementById('theme-color-meta'),
     gpsDot: document.getElementById('gpsDot'),
     climbChip: document.getElementById('climbChip'),
+    calChip: document.getElementById('calChip'),
     weightInput: document.getElementById('weightInput'),
-    weightUnitLabel: document.getElementById('weightUnit')
+    weightUnitLabel: document.getElementById('weightUnit'),
+    summaryOverlay: document.getElementById('summaryOverlay'),
+    summaryDist: document.getElementById('summaryDist'),
+    summaryTime: document.getElementById('summaryTime'),
+    summaryAvg: document.getElementById('summaryAvg'),
+    summaryMax: document.getElementById('summaryMax'),
+    summaryClimb: document.getElementById('summaryClimb'),
+    summaryCal: document.getElementById('summaryCal')
   };
 
   /* ============ helpers ============ */
@@ -570,6 +624,11 @@
     else met = 14;
     return met * weightKg * hours;
   }
+  function computeLiveCalories(){
+    var avgMs = ride.movingSeconds > 0 ? (ride.distanceM / ride.movingSeconds) : 0;
+    var hours = ride.movingSeconds / 3600;
+    return estimateCalories(avgMs * 3.6, hours, state.weightKg);
+  }
   function renderWeightInput(){
     if(state.unit === 'km'){
       el.weightInput.value = Math.round(state.weightKg);
@@ -590,82 +649,60 @@
     return m + ':' + pad(s);
   }
   function setTimerRunning(running){
-    if(running !== ride.timerRunning){
-      try{
-        if(navigator.vibrate) navigator.vibrate(running ? 25 : [15, 60, 15]);
-      }catch(e){}
-    }
     ride.timerRunning = running;
     el.timerDot.classList.toggle('live', running);
   }
   function toggleTimerManual(){
-    setTimerRunning(!ride.timerRunning);
-    clearTimeout(ride.autoMoveTimeout);
+    var next = !ride.timerRunning;
+    if(next) ride.lastMovementTime = Date.now();
+    setTimerRunning(next);
   }
 
-  /* ============ ride log ============ */
-  function loadLog(){
-    try{ return JSON.parse(localStorage.getItem('spoke_rides') || '[]'); }
-    catch(e){ return []; }
-  }
-  function saveLog(log){ localStorage.setItem('spoke_rides', JSON.stringify(log)); }
-  function logCurrentRide(){
-    if(ride.distanceM < 150) return;
-    var log = loadLog();
-    var avgMs = ride.movingSeconds > 0 ? (ride.distanceM / ride.movingSeconds) : 0;
-    var hours = ride.movingSeconds / 3600;
-    var cal = estimateCalories(avgMs * 3.6, hours, state.weightKg);
-    log.unshift({
-      date: new Date().toISOString(),
-      distanceM: ride.distanceM,
-      movingSeconds: ride.movingSeconds,
-      avgMs: avgMs,
-      maxMs: ride.maxSpeedMs,
-      elevGainM: ride.elevGainM,
-      cal: cal
-    });
-    if(log.length > 25) log = log.slice(0, 25);
-    saveLog(log);
-  }
-  function renderRideLog(){
-    var log = loadLog();
-    if(log.length === 0){
-      el.rideLogList.innerHTML = '<div class="empty-note">No rides saved yet — they appear here after you reset a ride.</div>';
-      return;
-    }
-    var html = log.map(function(r){
-      var d = new Date(r.date);
-      var dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      var dist = metersToDisplayDist(r.distanceM).toFixed(2) + ' ' + distUnitLabel();
-      var avg = Math.round(msToDisplaySpeed(r.avgMs)) + ' ' + unitLabel();
-      var cal = Math.round(r.cal || 0) + ' kcal';
-      return '<div class="row"><div><div class="row-label">' + dateStr + '</div>' +
-             '<div class="row-sub">' + dist + ' · ' + formatDuration(r.movingSeconds) + ' · ' + cal + '</div></div>' +
-             '<div class="row-value">' + avg + '</div></div>';
-    }).join('');
-    html += '<button class="small-btn" id="clearLogBtn" style="margin-top:12px">Clear log</button>';
-    el.rideLogList.innerHTML = html;
-    var clearBtn = document.getElementById('clearLogBtn');
-    if(clearBtn) clearBtn.addEventListener('click', function(){
-      saveLog([]);
-      renderRideLog();
-    });
-  }
+  /* ============ reset / ride summary ============ */
+  var SUMMARY_DURATION_MS = 6000;
+  var summaryTimeout = null;
 
-  /* ============ reset ============ */
-  function resetRide(){
-    logCurrentRide();
+  function clearRideData(){
     ride.distanceM = 0;
     ride.movingSeconds = 0;
     ride.maxSpeedMs = 0;
     ride.elevGainM = 0;
     ride.lastAltitude = null;
     ride.lastGoodFix = null;
+    ride.lastMovementTime = null;
     ride.speedBuffer = [];
     setTimerRunning(false);
-    clearTimeout(ride.autoMoveTimeout);
     renderStats(0);
-    renderRideLog();
+  }
+
+  function finishReset(){
+    clearTimeout(summaryTimeout);
+    el.summaryOverlay.classList.remove('open');
+    clearRideData();
+  }
+
+  function showRideSummary(){
+    var avgMs = ride.movingSeconds > 0 ? (ride.distanceM / ride.movingSeconds) : 0;
+    el.summaryDist.textContent = metersToDisplayDist(ride.distanceM).toFixed(2) + ' ' + distUnitLabel();
+    el.summaryTime.textContent = formatDuration(ride.movingSeconds);
+    el.summaryAvg.textContent = Math.round(msToDisplaySpeed(avgMs)) + ' ' + unitLabel();
+    el.summaryMax.textContent = Math.round(msToDisplaySpeed(ride.maxSpeedMs)) + ' ' + unitLabel();
+    el.summaryClimb.textContent = state.unit === 'km'
+      ? Math.round(ride.elevGainM) + ' m'
+      : Math.round(ride.elevGainM * 3.28084) + ' ft';
+    el.summaryCal.textContent = Math.round(computeLiveCalories()) + ' kcal';
+    el.summaryOverlay.classList.add('open');
+    clearTimeout(summaryTimeout);
+    summaryTimeout = setTimeout(finishReset, SUMMARY_DURATION_MS);
+  }
+
+  function resetRide(){
+    var meaningfulRide = ride.distanceM > 30 || ride.movingSeconds > 10;
+    if(meaningfulRide){
+      showRideSummary();
+    } else {
+      clearRideData();
+    }
   }
 
   /* ============ speed / geolocation ============ */
@@ -678,6 +715,7 @@
     el.climbChip.textContent = state.unit === 'km'
       ? Math.round(ride.elevGainM) + ' m'
       : Math.round(ride.elevGainM * 3.28084) + ' ft';
+    el.calChip.textContent = Math.round(computeLiveCalories()) + ' kcal';
     el.timerValue.textContent = formatDuration(ride.movingSeconds);
   }
 
@@ -718,8 +756,9 @@
     if(goodAccuracy){
       if(ride.lastGoodFix){
         var dist = haversine(ride.lastGoodFix.lat, ride.lastGoodFix.lon, c.latitude, c.longitude);
-        if(dist > 1 && dist < 200){
+        if(dist > 2.5 && dist < 200){
           ride.distanceM += dist;
+          ride.lastMovementTime = Date.now();
         }
       }
       ride.lastGoodFix = { lat: c.latitude, lon: c.longitude };
@@ -728,16 +767,9 @@
     }
 
     var kmh = smoothMs * 3.6;
-    if(kmh > 3){
-      clearTimeout(ride.autoMoveTimeout);
+    if(kmh > 4){
+      ride.lastMovementTime = Date.now();
       setTimerRunning(true);
-    } else if(ride.timerRunning){
-      if(!ride.autoMoveTimeout){
-        ride.autoMoveTimeout = setTimeout(function(){
-          setTimerRunning(false);
-          ride.autoMoveTimeout = null;
-        }, 8000);
-      }
     }
 
     renderStats(smoothMs);
@@ -761,12 +793,17 @@
   }
 
   /* timer ticking (independent of GPS fix rate) */
+  var STILL_TIMEOUT_MS = 8000;
   setInterval(function(){
     if(ride.timerRunning){
       ride.movingSeconds += 1;
       el.timerValue.textContent = formatDuration(ride.movingSeconds);
       var avgMs = ride.movingSeconds > 0 ? (ride.distanceM / ride.movingSeconds) : 0;
       el.avgValue.textContent = Math.round(msToDisplaySpeed(avgMs));
+      el.calChip.textContent = Math.round(computeLiveCalories()) + ' kcal';
+      if(ride.lastMovementTime && (Date.now() - ride.lastMovementTime > STILL_TIMEOUT_MS)){
+        setTimerRunning(false);
+      }
     }
   }, 1000);
 
@@ -793,21 +830,31 @@
     if(heading == null) return;
     el.compassChip.textContent = Math.round(heading) + '° ' + headingToCardinal(heading);
   }
-  function enableCompass(){
+  function attachCompass(){
+    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    state.compassEnabled = true;
+    el.compassBtn.textContent = 'Disable';
+  }
+  function detachCompass(){
+    window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+    window.removeEventListener('deviceorientation', handleOrientation, true);
+    state.compassEnabled = false;
+    el.compassBtn.textContent = 'Enable';
+    el.compassChip.textContent = 'Compass off';
+  }
+  function toggleCompass(){
+    if(state.compassEnabled){
+      detachCompass();
+      return;
+    }
     var DOE = window.DeviceOrientationEvent;
     if(DOE && typeof DOE.requestPermission === 'function'){
       DOE.requestPermission().then(function(res){
-        if(res === 'granted'){
-          window.addEventListener('deviceorientation', handleOrientation, true);
-          state.compassEnabled = true;
-          el.compassBtn.textContent = 'Enabled';
-        }
+        if(res === 'granted') attachCompass();
       }).catch(function(){});
     } else if(DOE){
-      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-      window.addEventListener('deviceorientation', handleOrientation, true);
-      state.compassEnabled = true;
-      el.compassBtn.textContent = 'Enabled';
+      attachCompass();
     } else {
       el.compassChip.textContent = 'No compass sensor';
     }
@@ -857,14 +904,14 @@
 
   /* ============ PWA manifest + service worker ============ */
   function setupPWA(){
-    var icon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2314181A'/%3E%3Cpath d='M50 22a28 28 0 1 1 -19.8 47.8' stroke='%237C8B3D' stroke-width='9' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%237C8B3D'/%3E%3C/svg%3E";
+    var icon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23F4F6F0'/%3E%3Ccircle cx='50' cy='54' r='30' fill='none' stroke='%237C8B3D' stroke-width='8'/%3E%3Cline x1='50' y1='54' x2='68' y2='36' stroke='%237C8B3D' stroke-width='7' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='54' r='6' fill='%237C8B3D'/%3E%3C/svg%3E";
     var manifest = {
       name: 'Spoke — Bike Dashboard',
       short_name: 'Spoke',
       start_url: '.',
       display: 'standalone',
-      background_color: '#14181A',
-      theme_color: '#14181A',
+      background_color: '#F4F6F0',
+      theme_color: '#F4F6F0',
       icons: [
         { src: icon, sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
         { src: icon, sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' }
@@ -891,7 +938,6 @@
   function openPanel(){
     el.panel.classList.add('open');
     el.panel.setAttribute('aria-hidden', 'false');
-    renderRideLog();
   }
   function closePanel(){
     el.panel.classList.remove('open');
@@ -910,14 +956,15 @@
 
   el.timerBtn.addEventListener('click', toggleTimerManual);
   el.resetBtn.addEventListener('click', resetRide);
+  el.summaryOverlay.addEventListener('click', finishReset);
   el.moreBtn.addEventListener('click', openPanel);
   el.backBtn.addEventListener('click', closePanel);
   el.themeBtn.addEventListener('click', function(){
     var currentVisual = document.documentElement.getAttribute('data-theme');
     applyTheme(currentVisual === 'dark' ? 'light' : 'dark');
   });
-  el.compassChip.addEventListener('click', enableCompass);
-  el.compassBtn.addEventListener('click', enableCompass);
+  el.compassChip.addEventListener('click', toggleCompass);
+  el.compassBtn.addEventListener('click', toggleCompass);
   el.weightInput.addEventListener('change', function(){
     var v = parseFloat(el.weightInput.value);
     if(!v || v <= 0) return;
@@ -928,7 +975,7 @@
   el.unitSeg.addEventListener('click', function(e){
     var btn = e.target.closest('button'); if(!btn) return;
     var v = btn.getAttribute('data-val');
-    if(v !== state.unit){ state.unit = v; localStorage.setItem('spoke_unit', v); el.unitToggle.textContent = unitLabel(); updateSegmented(el.unitSeg, v); renderWeightInput(); renderStats(0); renderRideLog(); }
+    if(v !== state.unit){ state.unit = v; localStorage.setItem('spoke_unit', v); el.unitToggle.textContent = unitLabel(); updateSegmented(el.unitSeg, v); renderWeightInput(); renderStats(0); }
   });
   el.clockSeg.addEventListener('click', function(e){
     var btn = e.target.closest('button'); if(!btn) return;
@@ -955,9 +1002,9 @@
     el.unitToggle.textContent = unitLabel();
     updateSegmented(el.unitSeg, state.unit);
     updateSegmented(el.clockSeg, state.clockFormat);
-    updateSegmented(el.themeSeg, state.themePref);
     el.wakeSwitch.classList.toggle('on', state.wakeLockOn);
     renderWeightInput();
+    applyTheme(state.themePref);
 
     renderClock();
     setInterval(renderClock, 1000);
